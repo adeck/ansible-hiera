@@ -1,7 +1,6 @@
 # ansible-hiera
 
 An ansible module for loading [hiera][] facts into [ansible][].
-This module is based on the one from [this gist][gist].
 
 This is primarily useful for those looking to use [puppet][] alongside ansible.
 
