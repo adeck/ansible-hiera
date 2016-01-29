@@ -12,7 +12,10 @@
 #   port of hiera or a python hiera compatibility library is far, far worse.
 #
 
-# TODO -- add examples section
+# TODO -- figure out if it's not a local_action and fail in that case, rather
+#         than running whatever ruby script that has the right name under
+#         ./library/hiera-json.rb
+# TODO -- improve examples section
 
 DOCUMENTATION = """
 ---
@@ -24,13 +27,22 @@ requirements:
   - For more information about hiera, see U(https://github.com/puppetlabs/hiera)
 notes:
   - >
+    !IMPORTANT!
+    Whenever an ansible module sets facts, ansible performs postprocessing on
+    all those facts. Specifically, if the value of a fact is a string, ansible
+    will _attempt to interpret that string as YAML_,and if it succeeds it
+    will set the value of the fact to the result. See the EXAMPLES to get a
+    feel for how seriously bad that can be. Again, this is an issue that has
+    _nothing to do_ with this particular module; all the messed-up stuff
+    happens after this module has exited.
+  - If a variable is not defined in hiera, it will be left undefined in ansible.
+  - >
     This module is written so that querying all the variables only require the
     ruby interpreter to be spawned once, and the hiera hierarchy only needs to
     be parsed once (or, at least, only one Hiera object is constructed in the
     ruby code). While it is possible to use this module in a with_items loop,
     defining each variable with a separate module call, it's far more
     efficient (and fast) to run it only once for each scope.
-  - If a variable is not defined in hiera, it will be left undefined in ansible.
   - >
     There are two executables which act in tandem to accomplish the goals of
     this module: the python part (which interacts with ansible) and the ruby
@@ -57,6 +69,14 @@ options:
     required: yes
     aliases: ['keys', 'p_keys']
     type: list
+  config_file:
+    description:
+      - >
+        The YAML-format config file hiera uses.
+        See hiera documentation for more information.
+    required: yes
+    aliases: ['hiera_config_file']
+    type: string
   allow_empty:
     description:
       - >
@@ -120,21 +140,51 @@ options:
     type: dict
 """
 
+EXAMPLES = """
+
+Let's say you have this next line in one of your hiera files:
+
+  test::var9: "[\\"hello\\", \\"{{ ansible_nodename }}\\", ansible_nodename]"
+
+A perfectly innocent, decent string. Here's what ansible interprets it as:
+
+  "test__var9": [
+      "hello", 
+      "{# ansible_nodename #}", 
+      "my-hostname"
+  ]
+
+Clearly, there are situations within which this would be less than ideal.
+The overwhelming majority of the time, it's worth pointing out, you won't
+run into this. It won't try to coerce a string into an int, float, bool, or
+other primitive. it won't try to coerce a string that happens to be a variable
+name into that variable
+(i.e. it won't replace a variable containing "ansible_nodename" with the actual
+value of the ansible_nodename variable), and it won't try to coerce anything
+that wouldn't otherwise be considered well-formed JSON.
+
+It will, however, get very annoying very fast if you start using a lot of
+curly braces, or if you wrap strings in brackets. So be careful.
+"""
+
 import os
 import subprocess
 import json
 import re
 from ansible.module_utils.basic import *
 
-hiera_json = './hiera-json.rb'
+hiera_json_name = './library/hiera-json.rb'
+hiera_json = hiera_json_name
+## this doesn't work, because ansible actually copies the module contents into
+##   the body of a much longer file, and then runs that.
+# os.path.join(os.path.dirname(__file__), hiera_json_name)
 
 def main():
   module = define_module()
   params = module.params
   try:
-    out = {}
-    out['ansible_facts'] = decode_vars(get_vars(construct_args(params)), params)
-    module.exit_json(out)
+    facts = rename_vars(get_vars(construct_args(params)), params)
+    module.exit_json(ansible_facts=facts)
   except Exception, e:
     module.fail_json(msg=str(e))
 
@@ -142,14 +192,18 @@ def define_module():
   module = AnsibleModule(
       argument_spec = dict(
           hiera_names=dict(required=True, aliases=['keys', 'p_keys'], type='list'),
-          # specifies whether the hiera_names parameter is allowed to be
-          #   an empty list.
+          config_file=dict(required=True, aliases=['hiera_config_file'], type='path'),
           allow_empty=dict(required=False, default=True, type='bool'),
           ansible_names=dict(required=False, type='list'),
-          scope_file=dict(required=False, type='string'),
+          scope_file=dict(required=False, type='path'),
           scope=dict(required=False, type='dict'),
       )
+      ,supports_check_mode=True
   )
+  if module.check_mode:
+    # check if any changes would be made but don't actually make those changes
+    # in our case, this is a moot point.
+    module.exit_json(changed=False)
   validate_hiera_names(module, module.params)
   validate_ans_names(module, module.params)
   return module
@@ -166,17 +220,17 @@ def validate_hiera_names(module, params):
 
 def validate_ans_names(module, params):
   regex = '^[a-zA-Z_][a-zA-Z_0-9]*$'
-  ans_names_usage = "Argument 'ansible_names', if defined, must be a list " +
-                    "of ansible-compatible names (so, valid python " +
-                    "identifiers which are of the form " + 
-                    + regex + "). Since these names " +
-                    "correspond to the names in 'hiera_names', those two " +
-                    "lists must also be the same length. "
+  ans_names_usage = str("Argument 'ansible_names', if defined, must be a list "
+                    "of ansible-compatible names (so, valid python "
+                    "identifiers which are of the form " 
+                    + regex + "). Since these names "
+                    "correspond to the names in 'hiera_names', those two "
+                    "lists must also be the same length. ")
   ans_names = params['ansible_names']
   if not ans_names:
-    params['ansible_names'] = [k.replace(':','_') for k in params['hiera_names']
+    params['ansible_names'] = [ k.replace(':','_') for k in params['hiera_names'] ]
     ans_names = params['ansible_names']
-  if len(ans_names) != len(param['hiera_names']):
+  if len(ans_names) != len(params['hiera_names']):
     module.fail_json(msg=ans_names_usage + 
                   "'ansible_names' and 'hiera_names' differed in length.")
   valid = re.compile(regex)
@@ -188,6 +242,7 @@ def validate_ans_names(module, params):
 
 def construct_args(params):
   pargs = [ hiera_json ]
+  pargs.extend(['-c', params['config_file']])
   scope_file = params['scope_file']
   if scope_file:
       pargs.extend(['-f', scope_file])
@@ -195,7 +250,7 @@ def construct_args(params):
   if scope:
       pargs.extend(['-j', json.dumps(scope)])
   pargs.append('--')
-  pargs.extend(params['hiera_keys'])
+  pargs.extend(params['hiera_names'])
   return pargs
 
 def get_vars(pargs):
@@ -211,16 +266,17 @@ def get_vars(pargs):
                     " and error message: " + err)
   return json.loads(res)
 
-def decode_vars(encoded, params):
+def rename_vars(orig, params):
   # where 'encoded' is in the form output by get_vars() above
   h_keys = params['hiera_names']
   a_keys = params['ansible_names']
   facts = {}
   for i in xrange(len(h_keys)):
-    val = encoded[h_keys[i]]
+    val = orig[h_keys[i]]
     if val['defined']:
       facts[a_keys[i]] = val['value']
+  return facts
 
-if __name_ == '__main__':
+if __name__ == '__main__':
   main()
 
