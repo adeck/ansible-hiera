@@ -1,0 +1,13 @@
+---
+
+:backends:
+    - yaml
+
+:yaml:
+  :datadir: ./data/hieradata
+
+:hierarchy:
+    - %{datacenter}/%{server_name}
+    - %{datacenter}/%{server_type}
+    - %{datacenter}/common
+

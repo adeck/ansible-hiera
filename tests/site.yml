@@ -1,0 +1,39 @@
+---
+
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: yes
+  vars:
+    hiera_vars:
+      - test::var1
+      - test::var2
+      - test::var3
+      - test::var4
+      - test::var5
+      - test::var6
+      - test::var7
+      - test::var8
+      - test::var9
+      - test::var0
+      - test::var10
+      - test::var11
+      - test::var12
+      - test::var13
+      - test::var14
+  tasks:
+    - name: check that the weathervane is defined
+      debug:
+        var: ansible_nodename
+    - name: Load some hiera variables
+      hiera:
+        keys: "{{ hiera_vars }}"
+        config_file: ./data/hiera.yaml
+        scope_file: ./data/environ.yaml
+        scope:
+          server_name: localhost
+    - name: check the vars got loaded
+      debug:
+        var: "{{ item | regex_replace(':','_') }}"
+      with_items: hiera_vars
+      
+

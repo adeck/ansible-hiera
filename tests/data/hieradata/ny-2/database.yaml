@@ -1,0 +1,40 @@
+---
+
+test::var1: "just a string"
+test::var2:
+  - one
+  - two
+test::var3:
+  - four
+  - five
+
+test::var4:
+  this:
+    structure:
+      - has
+      - a
+      - lot
+    of:
+      - parts:
+          to: true
+          it: true
+      - you
+  see:
+    - for
+    - "example, this"
+    - list
+
+test::var5:
+  outer:
+    inner: true
+    other: "string"
+  
+test::var6: "{\"hello\":\"world\"}"
+test::var7: "[\"hello\", \"world\"]"
+
+test::var8:
+  key1: val1
+  key2: val2
+
+test::var9: "[\"hello\", \"{{ ansible_ssh_host }}\", ansible_ssh_host, ansible_nodename]"
+

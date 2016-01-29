@@ -1,0 +1,9 @@
+---
+
+test::var10: "ansible_nodename"
+test::var11: "{{ ansible_nodename }}"
+test::var12: "01"
+test::var13: "yes"
+test::var14: "true"
+
+

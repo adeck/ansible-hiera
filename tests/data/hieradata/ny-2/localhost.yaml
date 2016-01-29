@@ -1,0 +1,14 @@
+---
+
+test::var1:
+  - hello
+  - goodbye
+test::var2:
+  - yep
+test::var3: "another string"
+test::var4: "Yet Another Test String"
+
+test::var8:
+  - li1
+  - li2
+
