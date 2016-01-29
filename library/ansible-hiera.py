@@ -13,37 +13,40 @@
 #
 
 # TODO -- figure out if it's not a local_action and fail in that case, rather
-#         than running whatever ruby script that has the right name under
-#         ./library/hiera-json.rb
+#         than running whatever ruby script that has the right name and is in
+#         /tmp .
 # TODO -- improve examples section
 
 DOCUMENTATION = """
 ---
-module: ansible-hiera
-short_description: "An ansible module used to query puppetlabs' hiera backend."
-author: "Andrew Deck, @adeck"
+module: hiera
+description: "An ansible module used to query puppetlabs' hiera backend."
+author: "Andrew Deck, github.com/adeck"
 requirements:
-  - This module requires that the hiera ruby library is loadable in ruby by default. If you have a puppet agent or master installed on the system, this is already done.
-  - For more information about hiera, see U(https://github.com/puppetlabs/hiera)
+  - >
+    This module requires that the hiera ruby library is loadable in ruby by default.
+    If you have a puppet agent or master installed on the system, this is already done.
+    For more information about hiera, see U(https://github.com/puppetlabs/hiera)
 notes:
   - >
     !IMPORTANT!
     Whenever an ansible module sets facts, ansible performs postprocessing on
     all those facts. Specifically, if the value of a fact is a string, ansible
-    will _attempt to interpret that string as YAML_,and if it succeeds it
+    will _attempt to interpret that string as YAML_, and if it succeeds it
     will set the value of the fact to the result. See the EXAMPLES to get a
     feel for how seriously bad that can be. Again, this is an issue that has
     _nothing to do_ with this particular module; all the messed-up stuff
     happens after this module has exited.
-  - If a variable is not defined in hiera, it will be left undefined in ansible.
-  - >
+    
+    If a variable is not defined in hiera, it will be left undefined in ansible.
+    
     This module is written so that querying all the variables only require the
     ruby interpreter to be spawned once, and the hiera hierarchy only needs to
     be parsed once (or, at least, only one Hiera object is constructed in the
     ruby code). While it is possible to use this module in a with_items loop,
     defining each variable with a separate module call, it's far more
     efficient (and fast) to run it only once for each scope.
-  - >
+    
     There are two executables which act in tandem to accomplish the goals of
     this module: the python part (which interacts with ansible) and the ruby
     part (which uses the hiera ruby API). This is done to ensure that, should
@@ -87,7 +90,7 @@ options:
         that list may be empty. It's also useful if you just want to test that
         everything's configured correctly with hiera and you don't actually want to
         define anything. That having been said, if you set this (optional) parameter
-        'allow_empty' to true, an empty list of 'hiera_names' will be treated as
+        'allow_empty' to false, an empty list of 'hiera_names' will be treated as
         an error condition.
     required: no
     default: yes
@@ -117,7 +120,7 @@ options:
     description:
       - The path to a YAML-formatted dictionary file.
       - >
-        This is not interpreted by ansible python, or hiera. It simply uses
+        This is not interpreted by ansible, python, or hiera. It simply uses
         ruby's YAML interpreter.
         Primarily useful for when your hierarchy contains parameterized
         paths.
