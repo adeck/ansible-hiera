@@ -1,5 +1,11 @@
 # ansible-hiera
 
+## Sections
+
+- WARNING! PLEASE READ!
+- About
+- How to use
+
 ## WARNING! PLEASE READ!
 
 At the moment, this module relies upon the assumption that it is running on
@@ -9,11 +15,18 @@ run as a `local_action` this is a serious security issue, because an attacker
 could place a file under `./library/hiera-json.rb` on the slave machine, and
 could use that to do whatever it wants.
 
+...Of course, for that to happen, you'd need to fail to notice in testing that
+this step always fails because it can't find a dependency, but still.
+
+Use this as a `local_action` or with `connection: local` and you'll be fine.
+
 ## About
 
 An ansible module for loading [hiera][] facts into [ansible][].
 
 This is primarily useful for those looking to use [puppet][] alongside ansible.
+
+## How to use
 
 Curious how to use the ansible module?
 It contains a DOCUMENTATION string readable by `ansible-doc`! Simply run:
