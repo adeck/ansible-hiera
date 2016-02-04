@@ -229,19 +229,24 @@ def validate_args(module, params):
 def validate_keys(module, params):
   keys = params['keys']
   for key in keys:
-    hiera = key['hiera']
-    if not (hiera and isinstance(key, basestring)):
+    if 'hiera' in key:
+      hiera = key['hiera']
+    else:
+      hiera = None
+    if not (hiera and isinstance(hiera, basestring)):
       raise Exception("Every list item in 'keys' must have a key called "
                       "'hiera', and the value associated with that key must "
                       "be a string.")
-    key['ansible'] = validate_ansible_key(hiera, key['ansible'])
+    if 'ansible' in key:
+      ansible = key['ansible']
+    else:
+      ansible = hiera.replace(':', '_')
+    key['ansible'] = validate_ansible_key(hiera, ansible)
   if not params['allow_empty'] and keys == []:
     module.fail_json(msg="'keys' was an empty list, and you "
                     "explicitly set the 'allow_empty' parameter to false.")
 
 def validate_ansible_key(hiera_key, ansible_key):
-  if not ansible_key:
-    ansible_key = hiera_key.replace(':', '_')
   regex = '^[a-zA-Z_][a-zA-Z_0-9]*$'
   if not (isinstance(ansible_key, basestring) and re.match(regex, ansible_key)):
       raise Exception("an ansible key contained the value \"" + str(ident) +
@@ -277,7 +282,7 @@ def get_vars(pargs):
 def rename_vars(orig, params):
   # where 'orig' is in the form output by get_vars() above
   facts = {}
-  for key in param['keys']:
+  for key in params['keys']:
     val = orig[key['hiera']]
     if val['defined']:
       facts[key['ansible']] = val['value']
