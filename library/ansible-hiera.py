@@ -172,6 +172,10 @@ that wouldn't otherwise be considered well-formed JSON.
 
 It will, however, get very annoying very fast if you start using a lot of
 curly braces, or if you wrap strings in brackets. So be careful.
+
+If you want to see actual examples of how this module would be used, look
+in the 'tests' directory, as its tests do a good job of showing how to use
+it.
 """
 
 import os
