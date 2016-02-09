@@ -12,7 +12,6 @@
 #   port of hiera or a python hiera compatibility library is far, far worse.
 #
 
-# TODO -- update documentation to reflect argument syntax change
 # TODO -- update examples to reflect argument syntax change
 
 # TODO -- figure out if it's not a local_action and fail in that case, rather
@@ -267,10 +266,17 @@ def construct_args(params):
   return pargs
 
 def get_vars(pargs):
-  p = subprocess.Popen(pargs
-        ,stdout = subprocess.PIPE
-        ,stderr = subprocess.PIPE)
-  res, err = p.communicate()
+  try:
+    p = subprocess.Popen(pargs
+          ,stdout = subprocess.PIPE
+          ,stderr = subprocess.PIPE)
+    res, err = p.communicate()
+  except Exception, e:
+    raise Exception("Unable to spawn hiera-json.rb. "
+                    "The problem was most likely either this module was run "
+                    "on a remote, or it was run from a dir such that "
+                    "the ruby script was inaccessible. Error message was: "
+                    + str(e))
   # worth noting that res should never be None; even if keys was an
   #   empty list (which is entirely allowed), the result of running hiera
   #   should be "{}", not "".
