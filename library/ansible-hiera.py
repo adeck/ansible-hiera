@@ -200,11 +200,14 @@ def main():
 
 def define_module():
   module = AnsibleModule(
+      # technically, those two 'str' arguments should be 'path' arguments, but
+      #   1. 'path' is only available in ansible 2, which (as of this writing, feb. 2016) is utterly broken, and
+      #   2. 'path' is not documented anywhere outside the core ansible code, so using it would be iffy.
       argument_spec = dict(
           keys=dict(required=True, aliases=['names'], type='list'),
-          config_file=dict(required=True, aliases=['hiera_config_file'], type='path'),
+          config_file=dict(required=True, aliases=['hiera_config_file'], type='str'),
           allow_empty=dict(required=False, default=True, type='bool'),
-          scope_file=dict(required=False, type='path'),
+          scope_file=dict(required=False, type='str'),
           scope=dict(required=False, type='dict'),
       )
       ,supports_check_mode=True
